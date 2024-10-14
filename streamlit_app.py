@@ -7,7 +7,8 @@ from sklearn.ensemble import RandomForestRegressor
 
 # Function to download and load the model using gdown
 @st.cache_resource
-def load_model_from_drive(file_id):
+def load_model_from_drive():
+    file_id = '15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # New Google Drive file ID
     output = 'vehicle_price_model.pkl'
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
