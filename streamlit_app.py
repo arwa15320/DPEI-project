@@ -3,6 +3,8 @@ import pandas as pd
 import pickle
 import gdown
 from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Function to download and load the model using gdown
 def load_model_from_drive(file_id):
@@ -32,10 +34,38 @@ def preprocess_input(data, model):
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
 
+# Function to load and display the dataset
+@st.cache
+def load_dataset():
+    return pd.read_csv('/content/Australian Vehicle Prices.csv')
+
+# Visualize price distribution
+def visualize_price_distribution(df):
+    st.subheader("Price Distribution in Dataset")
+    plt.figure(figsize=(10, 5))
+    sns.histplot(df['Price'], bins=30, kde=True, color='skyblue')
+    plt.title("Vehicle Price Distribution")
+    plt.xlabel("Price")
+    plt.ylabel("Frequency")
+    st.pyplot(plt.gcf())
+
+# Visualize the relationship between Year and Price
+def visualize_year_vs_price(df):
+    st.subheader("Year vs. Price in Dataset")
+    plt.figure(figsize=(10, 5))
+    sns.scatterplot(x='Year', y='Price', data=df, color='coral')
+    plt.title("Vehicle Year vs. Price")
+    plt.xlabel("Year")
+    plt.ylabel("Price")
+    st.pyplot(plt.gcf())
+
 # Main Streamlit app
 def main():
-    st.title("Vehicle Price Prediction App")
-    st.write("Enter the vehicle details below to predict its price.")
+    st.title("Vehicle Price Prediction App with Visualizations")
+    st.write("Enter the vehicle details below to predict its price and explore related visualizations.")
+
+    # Load the dataset
+    df = load_dataset()
 
     # Create input fields for all required features
     year = st.number_input("Year", min_value=1900, max_value=2024, value=2020)
@@ -49,6 +79,10 @@ def main():
     cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
     body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
     doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
+
+    # Display dataset visualizations
+    visualize_price_distribution(df)
+    visualize_year_vs_price(df)
 
     # Button for prediction
     if st.button("Predict Price"):
@@ -80,9 +114,17 @@ def main():
                 st.subheader("Predicted Price:")
                 st.write(f"${prediction[0]:,.2f}")
 
-                # # Visualize the result
-                # st.subheader("Price Visualization")
-                # st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+                # Visualize the predicted price compared to the dataset
+                st.subheader("Predicted Price vs Dataset Prices")
+                fig, ax = plt.subplots()
+                sns.histplot(df['Price'], bins=30, kde=True, color='skyblue', label='Dataset Prices', ax=ax)
+                ax.axvline(x=prediction[0], color='red', linestyle='--', label='Predicted Price')
+                ax.set_title('Predicted Price Compared to Dataset Prices')
+                ax.set_xlabel('Price')
+                ax.set_ylabel('Frequency')
+                ax.legend()
+                st.pyplot(fig)
+
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
         else:
