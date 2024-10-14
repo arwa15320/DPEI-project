@@ -3,6 +3,8 @@ import pandas as pd
 import pickle
 import gdown
 from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Function to download and load the model using gdown
 def load_model_from_drive(file_id):
@@ -21,16 +23,45 @@ def load_model_from_drive(file_id):
         st.error(f"Error loading the model: {str(e)}")
         return None
 
+# Load and preprocess the dataset
+def load_data():
+    try:
+        url = 'https://drive.google.com/uc?id=15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # Google Drive ID
+        output = 'Australian_Vehicle_Prices.csv'
+        gdown.download(url, output, quiet=False)
+        df = pd.read_csv(output, encoding='ISO-8859-1')  # Adjust encoding if needed
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None
+
 # Preprocess the input data
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
-    # One-Hot Encoding for categorical features based on the training model's features
     input_df_encoded = pd.get_dummies(input_df, drop_first=True)
-
-    # Reindex to ensure it matches the model's expected input
     model_features = model.feature_names_in_  # Get the features used during training
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
+
+# Visualize predictions and data
+def visualize_data(df, predicted_price):
+    st.subheader("Visualization of Vehicle Data")
+    
+    # Bar chart for predicted price
+    fig, ax = plt.subplots()
+    ax.bar(['Predicted Price'], [predicted_price], color='skyblue')
+    ax.set_ylabel('Price ($)')
+    ax.set_title('Predicted Vehicle Price')
+    st.pyplot(fig)
+
+    # Distribution plot for vehicle prices
+    st.subheader("Distribution of Vehicle Prices")
+    plt.figure(figsize=(10, 5))
+    sns.histplot(df['Price'], bins=30, kde=True, color='orange')
+    plt.title('Distribution of Vehicle Prices')
+    plt.xlabel('Price ($)')
+    plt.ylabel('Frequency')
+    st.pyplot(plt.gcf())  # Display the plot
 
 # Main Streamlit app
 def main():
@@ -49,6 +80,9 @@ def main():
     cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
     body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
     doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
+
+    # Load data for visualization
+    df = load_data()
 
     # Button for prediction
     if st.button("Predict Price"):
@@ -80,9 +114,9 @@ def main():
                 st.subheader("Predicted Price:")
                 st.write(f"${prediction[0]:,.2f}")
 
-                # # Visualize the result
-                # st.subheader("Price Visualization")
-                # st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+                # Visualize the data and prediction
+                if df is not None:
+                    visualize_data(df, prediction[0])
             except Exception as e:
                 st.error(f"Error making prediction: {str(e)}")
         else:
