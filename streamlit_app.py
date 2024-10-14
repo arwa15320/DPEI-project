@@ -1,151 +1,92 @@
 import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import pickle
+import gdown
+from sklearn.ensemble import RandomForestRegressor
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
-
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
-
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
-
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
+# Function to download and load the model using gdown
+def load_model_from_drive(file_id):
+    output = 'vehicle_price_model.pkl'
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+        with open(output, 'rb') as file:
+            model = pickle.load(file)
+        if isinstance(model, RandomForestRegressor):
+            return model
         else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+            st.error("Loaded model is not a RandomForestRegressor.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading the model: {str(e)}")
+        return None
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+# Preprocess the input data
+def preprocess_input(data, model):
+    input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
+    # One-Hot Encoding for categorical features based on the training model's features
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
+
+    # Reindex to ensure it matches the model's expected input
+    model_features = model.feature_names_in_  # Get the features used during training
+    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
+    return input_df_encoded
+
+# Main Streamlit app
+def main():
+    st.title("Vehicle Price Prediction App")
+    st.write("Enter the vehicle details below to predict its price.")
+
+    # Create input fields for all required features
+    year = st.number_input("Year", min_value=1900, max_value=2024, value=2020)
+    used_or_new = st.selectbox("Used or New", ["Used", "New"])
+    transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
+    engine = st.number_input("Engine Size (L)", min_value=0.0, value=2.0)
+    drive_type = st.selectbox("Drive Type", ["FWD", "RWD", "AWD"])
+    fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "Electric", "Hybrid"])
+    fuel_consumption = st.number_input("Fuel Consumption (L/100km)", min_value=0.0, value=8.0)
+    kilometres = st.number_input("Kilometres", min_value=0, value=50000)
+    cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
+    body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
+    doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
+
+    # Button for prediction
+    if st.button("Predict Price"):
+        file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
+        model = load_model_from_drive(file_id)
+
+        if model is not None:
+            # Preprocess the user input
+            input_data = {
+                'Year': year,
+                'UsedOrNew': used_or_new,
+                'Transmission': transmission,
+                'Engine': engine,
+                'DriveType': drive_type,
+                'FuelType': fuel_type,
+                'FuelConsumption': fuel_consumption,
+                'Kilometres': kilometres,
+                'CylindersinEngine': cylinders_in_engine,
+                'BodyType': body_type,
+                'Doors': doors
+            }
+            input_df = preprocess_input(input_data, model)
+
+            try:
+                # Make the prediction
+                prediction = model.predict(input_df)
+
+                # Display the result
+                st.subheader("Predicted Price:")
+                st.write(f"${prediction[0]:,.2f}")
+
+                # # Visualize the result
+                # st.subheader("Price Visualization")
+                # st.bar_chart(pd.DataFrame({'Price': [prediction[0]]}, index=['Vehicle']))
+            except Exception as e:
+                st.error(f"Error making prediction: {str(e)}")
+        else:
+            st.error("Failed to load the model.")
+
+if __name__ == "__main__":
+    main()
