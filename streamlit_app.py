@@ -22,6 +22,20 @@ def load_model_from_drive(file_id):
         st.error(f"Error loading the model: {str(e)}")
         return None
 
+# Load data for visualization
+def load_data():
+    try:
+        url = 'https://drive.google.com/uc?id=15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # Replace with your dataset's Google Drive ID
+        output = 'Australian_Vehicle_Prices.csv'
+        gdown.download(url, output, quiet=False)
+        
+        # Specify encoding
+        df = pd.read_csv(output, encoding='ISO-8859-1')  # You can try 'latin1' or 'cp1252' if needed
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None
+
 # Preprocess the input data
 def preprocess_input(data, model):
     input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
@@ -32,18 +46,6 @@ def preprocess_input(data, model):
     model_features = model.feature_names_in_  # Get the features used during training
     input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
     return input_df_encoded
-
-# Load data for visualization
-def load_data():
-    try:
-        url = 'https://drive.google.com/uc?id=15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # Replace with your dataset's Google Drive ID
-        output = 'Australian_Vehicle_Prices.csv'
-        gdown.download(url, output, quiet=False)
-        df = pd.read_csv(output)
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None
 
 # Main Streamlit app
 def main():
