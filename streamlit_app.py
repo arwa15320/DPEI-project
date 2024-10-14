@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 # Function to download and load the model using gdown
 @st.cache_resource
 def load_model_from_drive():
-    file_id = '15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # New Google Drive file ID
+    file_id = '15g6u61MQH469jC0GZ9YcSg5ui63TSzpb'  # Google Drive file ID
     output = 'vehicle_price_model.pkl'
     try:
         url = f'https://drive.google.com/uc?id={file_id}'
@@ -37,13 +37,6 @@ def main():
     st.set_page_config(page_title="Vehicle Price Prediction", layout="wide")
     st.title("🚗 Vehicle Price Prediction App")
     st.write("Enter the vehicle details below to predict its price.")
-
-    # Load the dataset
-    try:
-        df = pd.read_csv(r'C:\Users\Ecc\Downloads\archive (1)\Australian Vehicle Prices.csv')
-    except Exception as e:
-        st.error(f"Error loading the dataset: {str(e)}")
-        return
 
     # Create input fields for all required features
     col1, col2 = st.columns(2)
@@ -96,14 +89,17 @@ def main():
 
     # Example visualizations (scatter, histogram, box plot)
     if st.checkbox("Show Data Visualizations"):
-        fig1 = px.scatter(df, x='Kilometres', y='Price', color='FuelType', title="Kilometres vs Price")
-        st.plotly_chart(fig1, use_container_width=True)
+        # Visualization placeholders since we're not loading the dataset
+        st.warning("Visualizations will be available when the dataset is loaded.")
+        # Uncomment below to use actual DataFrame when available
+        # fig1 = px.scatter(df, x='Kilometres', y='Price', color='FuelType', title="Kilometres vs Price")
+        # st.plotly_chart(fig1, use_container_width=True)
 
-        fig2 = px.histogram(df, x='Price', nbins=30, title="Price Distribution")
-        st.plotly_chart(fig2, use_container_width=True)
+        # fig2 = px.histogram(df, x='Price', nbins=30, title="Price Distribution")
+        # st.plotly_chart(fig2, use_container_width=True)
 
-        fig3 = px.box(df, x='Transmission', y='Price', title="Price by Transmission")
-        st.plotly_chart(fig3, use_container_width=True)
+        # fig3 = px.box(df, x='Transmission', y='Price', title="Price by Transmission")
+        # st.plotly_chart(fig3, use_container_width=True)
 
 if __name__ == "__main__":
     main()
