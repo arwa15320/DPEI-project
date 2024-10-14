@@ -39,11 +39,11 @@ def main():
     st.write("Enter the vehicle details below to predict its price.")
 
     # Load the dataset
-  try:
-    df = pd.read_csv(r'C:\Users\Ecc\Downloads\archive (1)\Australian Vehicle Prices.csv')
-except Exception as e:
-    st.error(f"Error loading the dataset: {str(e)}")
-    return
+    try:
+        df = pd.read_csv(r'C:\Users\Ecc\Downloads\archive (1)\Australian Vehicle Prices.csv')
+    except Exception as e:
+        st.error(f"Error loading the dataset: {str(e)}")
+        return
 
     # Create input fields for all required features
     col1, col2 = st.columns(2)
