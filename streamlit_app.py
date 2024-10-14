@@ -40,7 +40,7 @@ def main():
 
     # Load the dataset
     try:
-        df = pd.read_csv('/mnt/data/Australian Vehicle Prices.csv')
+        df = pd.read_csv('C:\Users\Ecc\Downloads\archive (1)/Australian Vehicle Prices.csv')
     except Exception as e:
         st.error(f"Error loading the dataset: {str(e)}")
         return
@@ -63,7 +63,7 @@ def main():
         doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
 
     # Load model once
-    model = load_model_from_drive('11btPBNR74na_NjjnjrrYT8RSf8ffiumo')
+    model = load_model_from_drive()
 
     if model is not None:
         input_data = {
