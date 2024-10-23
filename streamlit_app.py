@@ -80,64 +80,64 @@ def main():
     # Upload CSV file
     uploaded_file = st.file_uploader("📂 Upload the Australian Vehicle Prices CSV file", type="csv")
 
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)  # Load the uploaded CSV file
+    # Create input fields for all required features
+    st.markdown("### Vehicle Input Features")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        year = st.number_input("Year", min_value=1900, max_value=2024, value=2020)
+        engine = st.number_input("Engine Size (L)", min_value=0.0, value=2.0)
+        drive_type = st.selectbox("Drive Type", ["FWD", "RWD", "AWD"])
+    
+    with col2:
+        used_or_new = st.selectbox("Used or New", ["Used", "New"])
+        transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
+        fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "Electric", "Hybrid"])
+    
+    with col3:
+        fuel_consumption = st.number_input("Fuel Consumption (L/100km)", min_value=0.0, value=8.0)
+        kilometres = st.number_input("Kilometres", min_value=0, value=50000)
+        cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
+        body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
+        doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
 
-        # Display dataset visualizations
-        with st.beta_expander("Explore Dataset Visualizations"):
-            visualize_price_distribution(df)
-            visualize_year_vs_price(df)
+    # Button for prediction
+    if st.button("🚀 Predict Price"):
+        file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
+        model = load_model_from_drive(file_id)
 
-        # Create input fields for all required features
-        st.markdown("### Vehicle Input Features")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            year = st.number_input("Year", min_value=1900, max_value=2024, value=2020)
-            engine = st.number_input("Engine Size (L)", min_value=0.0, value=2.0)
-            drive_type = st.selectbox("Drive Type", ["FWD", "RWD", "AWD"])
-        
-        with col2:
-            used_or_new = st.selectbox("Used or New", ["Used", "New"])
-            transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
-            fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "Electric", "Hybrid"])
-        
-        with col3:
-            fuel_consumption = st.number_input("Fuel Consumption (L/100km)", min_value=0.0, value=8.0)
-            kilometres = st.number_input("Kilometres", min_value=0, value=50000)
-            cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
-            body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
-            doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
+        if model is not None:
+            # Preprocess the user input
+            input_data = {
+                'Year': year,
+                'UsedOrNew': used_or_new,
+                'Transmission': transmission,
+                'Engine': engine,
+                'DriveType': drive_type,
+                'FuelType': fuel_type,
+                'FuelConsumption': fuel_consumption,
+                'Kilometres': kilometres,
+                'CylindersinEngine': cylinders_in_engine,
+                'BodyType': body_type,
+                'Doors': doors
+            }
+            input_df = preprocess_input(input_data, model)
 
-        # Button for prediction
-        if st.button("🚀 Predict Price"):
-            file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
-            model = load_model_from_drive(file_id)
+            try:
+                # Make the prediction
+                prediction = model.predict(input_df)
 
-            if model is not None:
-                # Preprocess the user input
-                input_data = {
-                    'Year': year,
-                    'UsedOrNew': used_or_new,
-                    'Transmission': transmission,
-                    'Engine': engine,
-                    'DriveType': drive_type,
-                    'FuelType': fuel_type,
-                    'FuelConsumption': fuel_consumption,
-                    'Kilometres': kilometres,
-                    'CylindersinEngine': cylinders_in_engine,
-                    'BodyType': body_type,
-                    'Doors': doors
-                }
-                input_df = preprocess_input(input_data, model)
+                # Display the result
+                st.subheader("💵 Predicted Price:")
+                st.write(f"**${prediction[0]:,.2f}**")
 
-                try:
-                    # Make the prediction
-                    prediction = model.predict(input_df)
-
-                    # Display the result
-                    st.subheader("💵 Predicted Price:")
-                    st.write(f"**${prediction[0]:,.2f}**")
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file)  # Load the uploaded CSV file
+                    
+                    # Display dataset visualizations after prediction
+                    with st.beta_expander("Explore Dataset Visualizations"):
+                        visualize_price_distribution(df)
+                        visualize_year_vs_price(df)
 
                     # Visualize the predicted price compared to the dataset
                     st.subheader("📊 Predicted Price vs Dataset Prices")
@@ -151,10 +151,10 @@ def main():
                     plt.grid(True)
                     st.pyplot(fig)
 
-                except Exception as e:
-                    st.error(f"Error making prediction: {str(e)}")
-            else:
-                st.error("Failed to load the model.")
+            except Exception as e:
+                st.error(f"Error making prediction: {str(e)}")
+        else:
+            st.error("Failed to load the model.")
     else:
         st.info("Please upload the dataset to start.")
 
