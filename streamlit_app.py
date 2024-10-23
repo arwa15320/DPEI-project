@@ -1,88 +1,162 @@
 import streamlit as st
 import pandas as pd
-from my_streamlit_app.Model import *
-from my_streamlit_app.Visualizations import *
+import pickle
+import gdown
+from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Set page configuration
-st.set_page_config(
-    page_title="Australian Vehicle Prices",
-    page_icon=":car:",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# Set Seaborn style
+sns.set(style="whitegrid")
 
-# Sidebar Navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Visualizations", "Model"])
+# Function to download and load the model using gdown
+def load_model_from_drive(file_id):
+    output = 'vehicle_price_model.pkl'
+    try:
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, output, quiet=False)
+        with open(output, 'rb') as file:
+            model = pickle.load(file)
+        if isinstance(model, RandomForestRegressor):
+            return model
+        else:
+            st.error("Loaded model is not a RandomForestRegressor.")
+            return None
+    except Exception as e:
+        st.error(f"Error loading the model: {str(e)}")
+        return None
 
-# Load the dataset
-data_url = "Australian Vehicle Prices.csv"  # Update with your actual file path
-df = pd.read_csv(data_url)
+# Preprocess the input data
+def preprocess_input(data, model):
+    input_df = pd.DataFrame(data, index=[0])  # Create DataFrame with an index
+    # One-Hot Encoding for categorical features based on the training model's features
+    input_df_encoded = pd.get_dummies(input_df, drop_first=True)
 
-# Convert 'Price' column to numeric and drop NaN values
-df['Price'] = pd.to_numeric(df['Price'], errors='coerce')
-df.dropna(subset=['Price'], inplace=True)
+    # Reindex to ensure it matches the model's expected input
+    model_features = model.feature_names_in_  # Get the features used during training
+    input_df_encoded = input_df_encoded.reindex(columns=model_features, fill_value=0)  # Fill missing columns with 0
+    return input_df_encoded
 
-# Main content based on the selected page
-if page == "Home":
-    st.markdown("<h1>🚗 Australian Vehicle Prices</h1>", unsafe_allow_html=True)
+# Visualize price distribution
+def visualize_price_distribution(df):
+    st.subheader("📊 Price Distribution in Dataset")
+    plt.figure(figsize=(10, 5))
+    sns.histplot(df['Price'], bins=30, kde=True, color='#61a5c2')
+    plt.title("Vehicle Price Distribution", fontsize=16)
+    plt.xlabel("Price ($)", fontsize=14)
+    plt.ylabel("Frequency", fontsize=14)
+    plt.grid(True)
+    st.pyplot(plt.gcf())
 
-    # Layout for text and image
-    col1, col2 = st.columns([2, 2])  # 2 parts for text, 2 parts for image
+# Visualize the relationship between Year and Price
+def visualize_year_vs_price(df):
+    st.subheader("📉 Year vs. Price in Dataset")
+    plt.figure(figsize=(10, 5))
+    sns.scatterplot(x='Year', y='Price', data=df, color='#ff6f61', edgecolor='black')
+    plt.title("Vehicle Year vs. Price", fontsize=16)
+    plt.xlabel("Year", fontsize=14)
+    plt.ylabel("Price ($)", fontsize=14)
+    plt.grid(True)
+    st.pyplot(plt.gcf())
 
-    with col1:
-        st.markdown(
-            """
-            <h2>📊 Overview</h2>
-            <p style="font-size: 20px;">A comprehensive dataset for exploring the car market in Australia.</p>
-            <h2>ℹ About Dataset</h2>
-            <p style="font-size: 20px;"><strong>Description:</strong> This dataset contains the latest information on car prices in Australia for the year 2023. It covers various brands, models, types, and features of cars sold in the Australian market. It provides useful insights into the trends and factors influencing the car prices in Australia. The dataset includes information such as brand, year, model, car/suv, title, used/new, transmission, engine, drive type, fuel type, fuel consumption, kilometres, colour (exterior/interior), location, cylinders in engine, body type, doors, seats, and price. The dataset has over 16,000 records of car listings from various online platforms in Australia.</p>
-            <h2>🔑 Key Features</h2>
-            <ul>
-                <li style="font-size: 20px;"><strong>Brand</strong>: 🚗 Name of the car manufacturer</li>
-                <li style="font-size: 20px;"><strong>Year</strong>: 📅 Year of manufacture or release</li>
-                <li style="font-size: 20px;"><strong>Model</strong>: 🏷 Name or code of the car model</li>
-                <li style="font-size: 20px;"><strong>Car/Suv</strong>: 🚙 Type of the car (car or suv)</li>
-                <li style="font-size: 20px;"><strong>Title</strong>: 📝 Title or description of the car</li>
-                <li style="font-size: 20px;"><strong>UsedOrNew</strong>: 🔄 Condition of the car (used or new)</li>
-                <li style="font-size: 20px;"><strong>Transmission</strong>: ⚙ Type of transmission (manual or automatic)</li>
-                <li style="font-size: 20px;"><strong>Engine</strong>: 🛠 Engine capacity or power (in litres or kilowatts)</li>
-                <li style="font-size: 20px;"><strong>DriveType</strong>: 🚘 Type of drive (front-wheel, rear-wheel, or all-wheel)</li>
-                <li style="font-size: 20px;"><strong>FuelType</strong>: ⛽ Type of fuel (petrol, diesel, hybrid, or electric)</li>
-                <li style="font-size: 20px;"><strong>FuelConsumption</strong>: 📊 Fuel consumption rate (in litres per 100 km)</li>
-                <li style="font-size: 20px;"><strong>Kilometres</strong>: 🛣 Distance travelled by the car (in kilometres)</li>
-                <li style="font-size: 20px;"><strong>ColourExtInt</strong>: 🎨 Colour of the car (exterior and interior)</li>
-                <li style="font-size: 20px;"><strong>Location</strong>: 📍 Location of the car (city and state)</li>
-                <li style="font-size: 20px;"><strong>CylindersinEngine</strong>: 🔧 Number of cylinders in the engine</li>
-                <li style="font-size: 20px;"><strong>BodyType</strong>: 🚙 Shape or style of the car body (sedan, hatchback, coupe, etc.)</li>
-                <li style="font-size: 20px;"><strong>Doors</strong>: 🚪 Number of doors in the car</li>
-                <li style="font-size: 20px;"><strong>Seats</strong>: 🪑 Number of seats in the car</li>
-                <li style="font-size: 20px;"><strong>Price</strong>: 💰 Price of the car (in Australian dollars)</li>
-            </ul>
-            <h2>🚀 Potential Use Cases</h2>
-            <ul>
-                <li style="font-size: 20px;"><strong>Price prediction</strong>: Predict the price of a car based on its features and location using machine learning models.</li>
-                <li style="font-size: 20px;"><strong>Market analysis</strong>: Explore the market trends and demand for different types of cars in Australia using descriptive statistics and visualization techniques.</li>
-                <li style="font-size: 20px;"><strong>Feature analysis</strong>: Identify the most important features that affect car prices and how they vary across different brands, models, and locations using correlation and regression analysis.</li>
-            </ul>
-            <h2>🔗 Kaggle Dataset Link</h2>
-            <p style="font-size: 20px;">Dataset: <a href="https://www.kaggle.com/datasets/nelgiriyewithana/australian-vehicle-prices" target="_blank">Australian Vehicle Prices on Kaggle</a></p>
+# Sidebar for styling and better layout
+def render_sidebar():
+    st.sidebar.markdown("### 🔧 App Controls")
+    st.sidebar.write("Adjust the input values to predict the vehicle price.")
+    st.sidebar.markdown("---")
+    st.sidebar.write("Visualizations will help you explore the dataset trends.")
+    st.sidebar.markdown("---")
 
-            """,
-            unsafe_allow_html=True,
-        )
+# Main Streamlit app
+def main():
+    st.set_page_config(page_title="Vehicle Price Prediction", layout="wide", page_icon="🚗")
 
-    with col2:
-        st.markdown('<div class="image-container">', unsafe_allow_html=True)
-        st.image("https://raw.githubusercontent.com/MennaEraky/gradprojectdpi/main/porsche-911-sally-cars-1.jpg", use_column_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.title("🚗 Vehicle Price Prediction App")
+    st.write("Enter the vehicle details below to predict its price and explore related visualizations.")
+    
+    # Add Sidebar
+    render_sidebar()
 
-elif page == "Visualizations":
-    st.title("📈 Visualizations")
-    if __name__ == "__main__":
-        mainn()
+    # Upload CSV file
+    uploaded_file = st.file_uploader("📂 Upload the Australian Vehicle Prices CSV file", type="csv")
 
-elif page == "Model":
-    st.title("🤖 Model")
-    if __name__ == "__main__":
-        main()
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)  # Load the uploaded CSV file
+
+        # Display dataset visualizations
+        with st.beta_expander("Explore Dataset Visualizations"):
+            visualize_price_distribution(df)
+            visualize_year_vs_price(df)
+
+        # Create input fields for all required features
+        st.markdown("### Vehicle Input Features")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            year = st.number_input("Year", min_value=1900, max_value=2024, value=2020)
+            engine = st.number_input("Engine Size (L)", min_value=0.0, value=2.0)
+            drive_type = st.selectbox("Drive Type", ["FWD", "RWD", "AWD"])
+        
+        with col2:
+            used_or_new = st.selectbox("Used or New", ["Used", "New"])
+            transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
+            fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "Electric", "Hybrid"])
+        
+        with col3:
+            fuel_consumption = st.number_input("Fuel Consumption (L/100km)", min_value=0.0, value=8.0)
+            kilometres = st.number_input("Kilometres", min_value=0, value=50000)
+            cylinders_in_engine = st.number_input("Cylinders in Engine", min_value=1, value=4)
+            body_type = st.selectbox("Body Type", ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible"])
+            doors = st.selectbox("Number of Doors", [2, 3, 4, 5])
+
+        # Button for prediction
+        if st.button("🚀 Predict Price"):
+            file_id = '11btPBNR74na_NjjnjrrYT8RSf8ffiumo'  # Google Drive file ID
+            model = load_model_from_drive(file_id)
+
+            if model is not None:
+                # Preprocess the user input
+                input_data = {
+                    'Year': year,
+                    'UsedOrNew': used_or_new,
+                    'Transmission': transmission,
+                    'Engine': engine,
+                    'DriveType': drive_type,
+                    'FuelType': fuel_type,
+                    'FuelConsumption': fuel_consumption,
+                    'Kilometres': kilometres,
+                    'CylindersinEngine': cylinders_in_engine,
+                    'BodyType': body_type,
+                    'Doors': doors
+                }
+                input_df = preprocess_input(input_data, model)
+
+                try:
+                    # Make the prediction
+                    prediction = model.predict(input_df)
+
+                    # Display the result
+                    st.subheader("💵 Predicted Price:")
+                    st.write(f"**${prediction[0]:,.2f}**")
+
+                    # Visualize the predicted price compared to the dataset
+                    st.subheader("📊 Predicted Price vs Dataset Prices")
+                    fig, ax = plt.subplots()
+                    sns.histplot(df['Price'], bins=30, kde=True, color='#61a5c2', label='Dataset Prices', ax=ax)
+                    ax.axvline(x=prediction[0], color='red', linestyle='--', label='Predicted Price')
+                    ax.set_title('Predicted Price Compared to Dataset Prices', fontsize=16)
+                    ax.set_xlabel('Price ($)', fontsize=14)
+                    ax.set_ylabel('Frequency', fontsize=14)
+                    ax.legend()
+                    plt.grid(True)
+                    st.pyplot(fig)
+
+                except Exception as e:
+                    st.error(f"Error making prediction: {str(e)}")
+            else:
+                st.error("Failed to load the model.")
+    else:
+        st.info("Please upload the dataset to start.")
+
+if __name__ == "__main__":
+    main()
