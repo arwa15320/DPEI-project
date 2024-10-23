@@ -13,7 +13,7 @@ sns.set(style="whitegrid")
 def load_model_from_drive(file_id):
     output = 'vehicle_price_model.pkl'
     try:
-@@ -28,135 +25,88 @@ def load_model_from_drive(file_id):
+ def load_model_from_drive(file_id):
 
 # Preprocess the input data
 def preprocess_input(data, model):
