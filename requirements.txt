@@ -6,3 +6,5 @@ gdown
 plotly
 matplotlib
 seaborn
+requests
+statsmodels
